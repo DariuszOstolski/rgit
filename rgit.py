@@ -126,17 +126,19 @@ def execute(dirname, action, executor):
   if branch == 'master':
     branchColor = bcolors.OKGREEN
     
-  safe = (action.safe() or -1!=out.find('nothing'))
+  no_changes = (-1!=out.find('nothing'))
+  safe_to_execute_action = (action is not None and (action.safe() or no_changes))
   
-  if safe:
+  if no_changes:
     result = bcolors.OKGREEN + "No Changes" + bcolors.ENDC
-    
-    # Execute requested action
-    if action:
-      push = executor.getoutput(action.format(dirname))
-      result = result + " {0} \n".format(action.get()) + push    
   else:
     result = bcolors.FAIL + "Changes" + bcolors.ENDC
+    
+  # Execute requested action
+  if safe_to_execute_action:
+    push = executor.getoutput(action.format(dirname))
+    result = result + " {0} \n".format(action.get()) + push    
+
   sys.stdout.write("--" + bcolors.OKBLUE + dirname.ljust(55) + bcolors.ENDC + branch + " : " + result +"\n")
 
 def scan(dirname, action, executor):  
