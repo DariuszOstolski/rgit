@@ -7,10 +7,9 @@ recursively.
 ###Usage
 
 
+```
 Usage: rgit.py [options]
 
-
-```
 Options:
 
   -h, --help            show this help message and exit
