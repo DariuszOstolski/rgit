@@ -10,7 +10,7 @@ recursively.
 Usage: rgit.py [options]
 
 
-`
+```
 Options:
 
   -h, --help            show this help message and exit
@@ -34,4 +34,4 @@ Options:
                         
   --dry-run             Don't execute anything actually. Just display executed
                         commands
-`
+```
