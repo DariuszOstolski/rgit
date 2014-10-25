@@ -4,8 +4,8 @@
 # to execute git pull/push and fetch recursively
 # on multiple repositories
 #
-# @author   Dariusz Ostolski 
-
+# @author   Dariusz Ostolski
+from mercurial.commands import summary
 
 import sys
 import os
@@ -34,7 +34,10 @@ subparsers = parser.add_subparsers(title='Action', dest='action',
 subparsers.add_parser('pull')
 subparsers.add_parser('push')
 subparsers.add_parser('fetch')
-subparsers.add_parser('status')
+fetch_parser = subparsers.add_parser('status')
+fetch_parser.add_argument('-s', '--summary', dest='summary', action="store_true"
+                          , default=False
+                          , help='Display summary for each subdirectory')
 parser.add_argument("--dry-run",
                     action="store_true",
                     dest="dry",
@@ -66,19 +69,38 @@ class bcolors:
 HEADER = '-- Starting rgit...\n'
 
 
-class Action:
-    def __init__(self, action, remote):
+class Action(object):
+    def __init__(self, action, remote, executor):
         self._remote = remote
         self._action = action
+        self._executor = executor
 
-    def format(self, directory):
-        return "cd {0}; git {1} ".format(directory, self._action) + ' '.join(self._remote.split(":"))
+    def execute(self, directory):
+         return self._executor.getoutput("cd {0} && git {1} ".format(directory, self._action)
+                                  + ' '.join(self._remote.split(":")))
 
     def get(self):
         return "({0})".format(self._action)
 
     def safe(self):
-        return self._action == 'fetch'
+        return self._action == 'fetch' or self._action=='status'
+
+class StatusAction(Action):
+    def __init__(self, remote, executor, summary = False):
+        """
+
+        :param remote:
+        :param executor:
+        :param summary:
+        """
+        Action.__init__(self, 'status', remote, executor)
+        self._summary = summary
+
+    def execute(self, directory):
+        out = Action.execute(self, directory)
+        if self._summary:
+            out = ''
+        return out
 
 
 class DryRunExecutor:
@@ -106,16 +128,22 @@ class CommandsExecutor:
 
 ON_BRANCH = 'On branch'
 
+def get_dir_status(dirname, executor):
+    return StatusAction('', executor).execute(dirname)
 
-def execute(dirname, action, executor):
-    out = executor.getoutput("cd {0} ; git status ".format(dirname))
-    logging.debug(out)
+def get_branch(out):
     branch_begin = out.find(ON_BRANCH)
     branch_end = out.find('\n', branch_begin)
-    branch = out[branch_begin + len(ON_BRANCH) + 1:branch_end]
+    return out[branch_begin + len(ON_BRANCH) + 1:branch_end]
+
+
+def execute(dirname, action, executor):
+    out = get_dir_status(dirname, executor)
+    logging.debug(out)
+    branch = get_branch(out)
 
     no_changes = (-1 != out.find('nothing'))
-    safe_to_execute_action = (action is not None and (action.safe or no_changes))
+    safe_to_execute_action = (action is not None and (action.safe() or no_changes))
 
     if no_changes:
         result = bcolors.OKGREEN + "No Changes" + bcolors.ENDC
@@ -124,7 +152,7 @@ def execute(dirname, action, executor):
 
     # Execute requested action
     if safe_to_execute_action:
-        command_result = executor.getoutput(action.format(dirname))
+        command_result = action.execute(dirname)
         result = result + " {0} \n".format(action.get()) + command_result
 
     sys.stdout.write("--" + bcolors.OKBLUE + dirname.ljust(55) + bcolors.ENDC + branch + " : " + result + "\n")
@@ -155,18 +183,19 @@ def main(argv=None):
     if options.dry:
         executor = DryRunExecutor()
 
-    print options
     action = None
     if options.action == 'pull':
-        action = Action("pull", options.remote)
+        action = Action("pull", options.remote, executor)
     if options.action == 'push':
-        action = Action("push", options.remote)
+        action = Action("push", options.remote, executor)
     if options.action == 'fetch':
-        action = Action("fetch", options.remote)
+        action = Action("fetch", options.remote, executor)
+    if options.action == 'status':
+        action = StatusAction(options.remote, executor, options.summary)
 
     dirname = os.path.abspath(options.dirname)
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=verbosity)
-    os.system('clear')
+    logging.debug("Options %s", options)
     sys.stdout.write(HEADER)
     sys.stdout.write("Scanning sub directories of {0}\n".format(dirname))
     scan(dirname, action, executor)
