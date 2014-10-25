@@ -8,29 +8,26 @@ recursively.
 
 
 ```
-Usage: rgit.py [options]
+usage: rgit.py [-h] [-v] [-d DIRNAME] [-r REMOTE] [--dry-run]
+               {pull,push,fetch,status} ...
 
-Options:
+rgit execute git commands recursively
 
+optional arguments:
   -h, --help            show this help message and exit
-  
-  -d DIRNAME, --dir=DIRNAME
-                        The directory to parse sub dirs from
-
-  -v, --verbose         Show the full detail of git status
-  
-  -r REMOTE, --remote=REMOTE  
+  -v, --verbose
+  -d DIRNAME, --dir DIRNAME
+                        The directory to scan sub dirs from. The default is
+                        current working directory
+  -r REMOTE, --remote REMOTE
                         Set the remote name (remotename:branchname)
-                        
-  --push                Do a 'git push' if you've set a remote with -r it will
-                        push to there
-                        
-  -p, --pull            Do a 'git pull' if you've set a remote with -r it will
-                        pull from there
-                        
-  -f, --fetch           Do a 'git fetch' if you've set a remote with -r it
-                        will pull from there
-                        
   --dry-run             Don't execute anything actually. Just display executed
                         commands
+
+Action:
+  git action to execute: pull, push, fetch, status
+
+  {pull,push,fetch,status}
+                        git action to execute recursively
+
 ```
