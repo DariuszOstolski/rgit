@@ -28,7 +28,7 @@ parser.add_argument("-r", "--remote",
                     help="Set the remote name (remotename:branchname)")
 
 subparsers = parser.add_subparsers(title='Action', dest='action',
-                                   description='git action to execute: pull, push, fetch',
+                                   description='git action to execute: pull, push, fetch, status',
                                    help='git action to execute recursively')
 
 subparsers.add_parser('pull')
