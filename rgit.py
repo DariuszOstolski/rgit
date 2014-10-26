@@ -5,7 +5,7 @@
 # on multiple repositories
 #
 # @author   Dariusz Ostolski
-from mercurial.commands import summary
+
 
 import sys
 import os
@@ -76,17 +76,18 @@ class Action(object):
         self._executor = executor
 
     def execute(self, directory):
-         return self._executor.getoutput("cd {0} && git {1} ".format(directory, self._action)
-                                  + ' '.join(self._remote.split(":")))
+        return self._executor.getoutput("cd {0} && git {1} ".format(directory, self._action)
+                                        + ' '.join(self._remote.split(":")))
 
     def get(self):
         return "({0})".format(self._action)
 
     def safe(self):
-        return self._action == 'fetch' or self._action=='status'
+        return self._action == 'fetch' or self._action == 'status'
+
 
 class StatusAction(Action):
-    def __init__(self, remote, executor, summary = False):
+    def __init__(self, remote, executor, summary=False):
         """
 
         :param remote:
@@ -128,8 +129,10 @@ class CommandsExecutor:
 
 ON_BRANCH = 'On branch'
 
+
 def get_dir_status(dirname, executor):
     return StatusAction('', executor).execute(dirname)
+
 
 def get_branch(out):
     branch_begin = out.find(ON_BRANCH)
