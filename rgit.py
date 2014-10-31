@@ -12,6 +12,8 @@ import os
 import commands
 import logging
 import argparse
+import shlex
+import subprocess
 
 parser = argparse.ArgumentParser(description="rgit execute git commands recursively")
 parser.add_argument('-v', '--verbose', action="store_true", default=False)
@@ -92,7 +94,7 @@ class Action(object):
         self._executor = executor
 
     def execute(self, directory):
-        return self._executor.getoutput(self.format_command(directory))
+        return self._executor.getoutput(directory, self.get_command())
 
     def get(self):
         return "({0})".format(self._action)
@@ -100,9 +102,8 @@ class Action(object):
     def safe(self):
         return self._action == 'fetch'
 
-    def format_command(self, directory):
-        return "cd {0} && git {1} {2}".format(directory, self._action, self.get_options()) + ' '.join(
-            self._remote.split(":"))
+    def get_command(self):
+        return "git {0} {1}".format(self._action, self.get_options()) + ' '.join(self._remote.split(":"))
 
     def get_options(self):
         return ''
@@ -148,8 +149,8 @@ class DryRunExecutor:
     def __init__(self):
         pass
 
-    def getoutput(self, command):
-        logging.warning("Executing: %s", command)
+    def getoutput(self, directory, command):
+        logging.warning("Executing: %s in %s", command, directory)
         if command.find('git status') != -1:
             return """On branch master
 Your branch is up-to-date with 'origin/master'.
@@ -162,10 +163,20 @@ class CommandsExecutor:
     def __init__(self):
         pass
 
-    def getoutput(self, command):
+    def getoutput(self, directory, command):
         logging.debug("Executing: %s", command)
-        return commands.getoutput(command)
+        return commands.getoutput('cd {0} && {1]', directory, command)
 
+class SubprocessExecutor:
+    def __init__(self):
+        pass
+
+    def getoutput(self, directory,  command):
+        logging.debug("Executing: %s in %s", command, directory)
+        args = shlex.split(command)
+        git_process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = git_process.communicate()
+        return stdout
 
 ON_BRANCH = 'On branch'
 
@@ -222,7 +233,7 @@ def main(argv=None):
     verbosity = logging.WARNING
     if options.verbose:
         verbosity = logging.DEBUG
-    executor = CommandsExecutor()
+    executor = SubprocessExecutor()
     if options.dry:
         executor = DryRunExecutor()
 
