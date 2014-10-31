@@ -31,13 +31,29 @@ subparsers = parser.add_subparsers(title='Action', dest='action',
                                    description='git action to execute: pull, push, fetch, status',
                                    help='git action to execute recursively')
 
-subparsers.add_parser('pull')
+pull_parser = subparsers.add_parser('pull')
+pull_parser.add_argument("--all", dest='all', action='store_true', default=False
+                         , help='Fetch all remotes.')
+pull_parser.add_argument('-r', '--rebase', dest='rebase', choices=['false', 'true', 'preserve']
+                         , help="""When true, rebase the current branch on top of the upstream branch after fetching.
+If there is a remote-tracking branch corresponding to the upstream branch and the upstream branch was rebased since last
+fetched, the rebase uses that information to avoid rebasing non-local changes.\n\n
+When preserve, also rebase the current branch on top of the upstream branch, but pass --preserve-merges along to git
+rebase so that locally created merge commits will not be flattened.\n\n
+When false, merge the current branch into the upstream branch.\n\n
+
+See pull.rebase, branch.<name>.rebase and branch.autosetuprebase in git-config(1) if you want to make git pull always
+use --rebase instead of merging.\n\n
+\tNote
+\tThis is a potentially dangerous mode of operation. It rewrites history, which does not bode well when you published that history
+\talready. Do not use this option unless you have read git-rebase(1) carefully.""")
+
 subparsers.add_parser('push')
 subparsers.add_parser('fetch')
-fetch_parser = subparsers.add_parser('status')
-fetch_parser.add_argument('-s', '--summary', dest='summary', action="store_true"
-                          , default=False
-                          , help='Display summary for each subdirectory')
+status_parser = subparsers.add_parser('status')
+status_parser.add_argument('-s', '--summary', dest='summary', action="store_true"
+                           , default=False
+                           , help='Display summary for each subdirectory')
 parser.add_argument("--dry-run",
                     action="store_true",
                     dest="dry",
@@ -76,14 +92,35 @@ class Action(object):
         self._executor = executor
 
     def execute(self, directory):
-        return self._executor.getoutput("cd {0} && git {1} ".format(directory, self._action)
-                                        + ' '.join(self._remote.split(":")))
+        return self._executor.getoutput(self.format_command(directory))
 
     def get(self):
         return "({0})".format(self._action)
 
     def safe(self):
-        return self._action == 'fetch' or self._action == 'status'
+        return self._action == 'fetch'
+
+    def format_command(self, directory):
+        return "cd {0} && git {1} {2}".format(directory, self._action, self.get_options()) + ' '.join(
+            self._remote.split(":"))
+
+    def get_options(self):
+        return ''
+
+
+class PullAction(Action):
+    def __init__(self, remote, executor, options):
+        Action.__init__(self, 'pull', remote, executor)
+        self._options = options
+
+
+    def get_options(self):
+        options = ''
+        if self._options.all:
+            options = '--all'
+        if self._options.rebase:
+            options += ' --rebase={0}'.format(self._options.rebase)
+        return options
 
 
 class StatusAction(Action):
@@ -102,6 +139,9 @@ class StatusAction(Action):
         if self._summary:
             out = ''
         return out
+
+    def safe(self):
+        return True
 
 
 class DryRunExecutor:
@@ -188,7 +228,7 @@ def main(argv=None):
 
     action = None
     if options.action == 'pull':
-        action = Action("pull", options.remote, executor)
+        action = PullAction(options.remote, executor, options)
     if options.action == 'push':
         action = Action("push", options.remote, executor)
     if options.action == 'fetch':
