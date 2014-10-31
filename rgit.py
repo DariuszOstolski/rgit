@@ -9,7 +9,6 @@
 
 import sys
 import os
-import commands
 import logging
 import argparse
 import shlex
@@ -157,15 +156,6 @@ Your branch is up-to-date with 'origin/master'.
 
 nothing to commit, working directory clean"""
         return ""
-
-
-class CommandsExecutor:
-    def __init__(self):
-        pass
-
-    def getoutput(self, directory, command):
-        logging.debug("Executing: %s", command)
-        return commands.getoutput('cd {0} && {1]', directory, command)
 
 class SubprocessExecutor:
     def __init__(self):
