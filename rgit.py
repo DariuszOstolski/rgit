@@ -5,7 +5,6 @@
 # on multiple repositories
 #
 # @author   Dariusz Ostolski
-from mercurial.transaction import transaction
 
 import sys
 import os
