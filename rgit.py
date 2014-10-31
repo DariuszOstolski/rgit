@@ -5,7 +5,7 @@
 # on multiple repositories
 #
 # @author   Dariusz Ostolski
-
+from mercurial.transaction import transaction
 
 import sys
 import os
@@ -215,18 +215,16 @@ def scan(dirname, action, executor):
                 scan(full_path, action, executor)
 
 
-def main(argv=None):
+def main_impl(argv):
     options = parser.parse_args(argv)
     os.environ['LANGUAGE'] = 'en_US:en'
     os.environ['LANG'] = 'en_US.UTF-8'
-
     verbosity = logging.WARNING
     if options.verbose:
         verbosity = logging.DEBUG
     executor = SubprocessExecutor()
     if options.dry:
         executor = DryRunExecutor()
-
     action = None
     if options.action == 'pull':
         action = PullAction(options.remote, executor, options)
@@ -236,14 +234,21 @@ def main(argv=None):
         action = Action("fetch", options.remote, executor)
     if options.action == 'status':
         action = StatusAction(options.remote, executor, options.summary)
-
     dirname = os.path.abspath(options.dirname)
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=verbosity)
     logging.debug("Options %s", options)
     sys.stdout.write(HEADER)
     sys.stdout.write("Scanning sub directories of {0}\n".format(dirname))
     scan(dirname, action, executor)
+    return 0
 
+
+def main(argv=None):
+    try:
+        return main_impl(argv)
+    except (KeyboardInterrupt, SystemExit):
+        sys.stdout.write("\n")
+        return 0
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
