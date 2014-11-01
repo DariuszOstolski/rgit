@@ -63,9 +63,10 @@ parser.add_argument("--dry-run",
 """
 http://stackoverflow.com/questions/287871/print-in-terminal-with-colors-using-python
 """
+HEADER = '-- Starting rgit...'
 
 
-class bcolors:
+class ColorFormatter(object):
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKGREEN = '\033[92m'
@@ -73,16 +74,35 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
-    def disable(self):
-        self.HEADER = ''
-        self.OKBLUE = ''
-        self.OKGREEN = ''
-        self.WARNING = ''
-        self.FAIL = ''
-        self.ENDC = ''
+    def __init__(self):
+        pass
 
+    def normal(self, str):
+        return str
 
-HEADER = '-- Starting rgit...\n'
+    def header(self, str):
+        return self._format_impl(self.HEADER, str)
+
+    def info(self, str):
+        return self._format_impl(self.OKGREEN, str)
+
+    def info_darker(self, str):
+        return self._format_impl(self.OKBLUE, str)
+
+    def warning(self, str):
+        return self._format_impl(self.WARNING, str)
+
+    def fail(self, str):
+        return self._format_impl(self.FAIL, str)
+
+    def _format_impl(self, color, str):
+        return '{0}{1}{2}'.format(color, str, self.ENDC)
+
+    def println(self, str):
+        sys.stdout.write("{0}\n".format(str))
+
+    def print_header(self, header):
+        self.println(self.header(header))
 
 
 class Action(object):
@@ -156,16 +176,18 @@ Your branch is up-to-date with 'origin/master'.
 nothing to commit, working directory clean"""
         return ""
 
+
 class SubprocessExecutor:
     def __init__(self):
         pass
 
-    def getoutput(self, directory,  command):
+    def getoutput(self, directory, command):
         logging.debug("Executing: %s in %s", command, directory)
         args = shlex.split(command)
         git_process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = git_process.communicate()
         return stdout
+
 
 ON_BRANCH = 'On branch'
 
@@ -180,7 +202,7 @@ def get_branch(out):
     return out[branch_begin + len(ON_BRANCH) + 1:branch_end]
 
 
-def execute(dirname, action, executor):
+def execute(dirname, action, executor, formatter):
     out = get_dir_status(dirname, executor)
     logging.debug(out)
     branch = get_branch(out)
@@ -189,23 +211,23 @@ def execute(dirname, action, executor):
     safe_to_execute_action = (action is not None and (action.safe() or no_changes))
 
     if no_changes:
-        result = bcolors.OKGREEN + "No Changes" + bcolors.ENDC
+        result = formatter.info("No Changes")
     else:
-        result = bcolors.FAIL + "Changes" + bcolors.ENDC
+        result = formatter.fail("Changes")
 
     # Execute requested action
     if safe_to_execute_action:
         command_result = action.execute(dirname)
         result = result + " {0} \n".format(action.get()) + command_result
 
-    sys.stdout.write("--" + bcolors.OKBLUE + dirname.ljust(55) + bcolors.ENDC + branch + " : " + result + "\n")
+    formatter.println("-- " + formatter.info_darker(dirname.ljust(55)) + branch + " : " + result)
 
 
-def scan(dirname, action, executor):
+def scan(dirname, action, executor, formatter):
     full_path = os.path.join(dirname, '.git')
     if os.path.exists(full_path) and os.path.isdir(full_path):
         logging.info("Found git directory in: %s", dirname)
-        execute(dirname, action, executor)
+        execute(dirname, action, executor, formatter)
     else:
         for f in os.listdir(dirname):
             full_path = os.path.join(dirname, f)
@@ -218,6 +240,7 @@ def main_impl(argv):
     options = parser.parse_args(argv)
     os.environ['LANGUAGE'] = 'en_US:en'
     os.environ['LANG'] = 'en_US.UTF-8'
+    formatter = ColorFormatter()
     verbosity = logging.WARNING
     if options.verbose:
         verbosity = logging.DEBUG
@@ -236,9 +259,9 @@ def main_impl(argv):
     dirname = os.path.abspath(options.dirname)
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=verbosity)
     logging.debug("Options %s", options)
-    sys.stdout.write(HEADER)
-    sys.stdout.write("Scanning sub directories of {0}\n".format(dirname))
-    scan(dirname, action, executor)
+    formatter.print_header(HEADER)
+    formatter.println("Scanning sub directories of {0}".format(dirname))
+    scan(dirname, action, executor, formatter)
     return 0
 
 
@@ -248,6 +271,7 @@ def main(argv=None):
     except (KeyboardInterrupt, SystemExit):
         sys.stdout.write("\n")
         return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
