@@ -184,7 +184,7 @@ class SubprocessExecutor:
     def getoutput(self, directory, command):
         logging.debug("Executing: %s in %s", command, directory)
         args = shlex.split(command)
-        git_process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        git_process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=directory)
         stdout, stderr = git_process.communicate()
         return stdout
 
@@ -233,7 +233,7 @@ def scan(dirname, action, executor, formatter):
             full_path = os.path.join(dirname, f)
             if os.path.isdir(full_path):
                 logging.debug("Entering directory: %s", full_path)
-                scan(full_path, action, executor)
+                scan(full_path, action, executor, formatter)
 
 
 def main_impl(argv):
