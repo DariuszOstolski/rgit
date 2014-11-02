@@ -100,9 +100,11 @@ class ColorFormatter(object):
 
     def println(self, str):
         sys.stdout.write("{0}\n".format(str))
+        return self
 
     def print_header(self, header):
         self.println(self.header(header))
+        return self
 
 
 class Action(object):
