@@ -128,6 +128,19 @@ class Action(object):
     def get_options(self):
         return ''
 
+class StatusResult(object):
+    def __init__(self):
+        self._modified_staged = []
+        self._modified_unstaged = []
+        self._untracked = []
+        self._deleted_staged = []
+
+class StatusParser(object):
+    def __init__(self):
+        pass
+    def parse(self, output):
+        return StatusResult()
+
 
 class PullAction(Action):
     def __init__(self, remote, executor, options):
@@ -183,7 +196,7 @@ class SubprocessExecutor:
     def __init__(self):
         pass
 
-    def getoutput(self, directory, command):
+    def get_output(self, directory, command):
         logging.debug("Executing: %s in %s", command, directory)
         args = shlex.split(command)
         git_process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=directory)
