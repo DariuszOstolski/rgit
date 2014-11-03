@@ -22,6 +22,8 @@ AM blabla1.file"""
 M  COPYING
  M COPYING.lzma
 """
+    branch = """## master...origin/master [ahead 1, behind 2]"""
+
     def setUp(self):
         pass
 
@@ -63,6 +65,13 @@ M  COPYING
         self.assertEquals("COPYING", result.modified[0])
         self.assertEquals("COPYING.lzma", result.modified_work_tree[0])
 
+    def test_parse_branch(self):
+        parser = rgit.StatusParser()
+        result = parser.parse(TestStatusParser.branch)
+        self.assertEquals("master", len(result.branch))
+        self.assertEquals("origin/master", len(result.branch_remote))
+        self.assertEquals(1, len(result.ahead))
+        self.assertEquals(2, len(result.behind))
 
 if __name__ == '__main__':
     unittest.main()
