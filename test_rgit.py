@@ -48,7 +48,7 @@ M  COPYING
         parser = rgit.StatusParser()
         result = parser.parse(TestStatusParser.untracked)
         self.assertEquals(1, len(result.untracked))
-        self.assertEquals("COPYING.unra", result.renamed[0])
+        self.assertEquals("COPYING.unra", result.untracked[0])
 
     def test_parse_new_file(self):
         parser = rgit.StatusParser()
