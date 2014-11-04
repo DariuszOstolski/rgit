@@ -23,6 +23,8 @@ M  COPYING
  M COPYING.lzma
 """
     branch = """## master...origin/master [ahead 1, behind 2]"""
+    branch_detached = """## HEAD (no branch)"""
+    branch_simple = """## dev"""
 
     def setUp(self):
         pass
@@ -67,11 +69,24 @@ M  COPYING
 
     def test_parse_branch(self):
         parser = rgit.StatusParser()
+
         result = parser.parse(TestStatusParser.branch)
-        self.assertEquals("master", len(result.branch))
-        self.assertEquals("origin/master", len(result.branch_remote))
-        self.assertEquals(1, len(result.ahead))
-        self.assertEquals(2, len(result.behind))
+        self.assertEquals("master", result.branch)
+        self.assertEquals("origin/master", result.branch_remote)
+        self.assertEquals(1, result.ahead)
+        self.assertEquals(2, result.behind)
+
+        result = parser.parse(TestStatusParser.branch_detached)
+        self.assertEquals("detached", result.branch)
+        self.assertEquals(None, result.branch_remote)
+        self.assertEquals(0, result.ahead)
+        self.assertEquals(0, result.behind)
+
+        result = parser.parse(TestStatusParser.branch_simple)
+        self.assertEquals("dev", result.branch)
+        self.assertEquals(None, result.branch_remote)
+        self.assertEquals(0, result.ahead)
+        self.assertEquals(0, result.behind)
 
 if __name__ == '__main__':
     unittest.main()

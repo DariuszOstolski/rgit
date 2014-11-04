@@ -134,12 +134,105 @@ class StatusResult(object):
         self._modified_unstaged = []
         self._untracked = []
         self._deleted_staged = []
+        self._branch = None
+        self._branch_remote = None
+        self._ahead = 0
+        self._behind = 0
+
+    @property
+    def branch(self):
+        return self._branch
+
+    @branch.setter
+    def branch(self, branch):
+        self._branch = branch
+
+    @property
+    def branch_remote(self):
+        return self._branch_remote
+
+    @branch_remote.setter
+    def branch_remote(self, remote):
+        self._branch_remote = remote
+
+    @property
+    def ahead(self):
+        return self._ahead
+
+    @ahead.setter
+    def ahead(self, ahead):
+        self._ahead = ahead
+
+    @property
+    def behind(self):
+        return self._behind
+
+    @behind.setter
+    def behind(self, behind):
+        self._behind = behind
+
 
 class StatusParser(object):
     def __init__(self):
         pass
+
     def parse(self, output):
-        return StatusResult()
+        result = StatusResult()
+        lines = output.splitlines()
+        if lines[0].startswith('##'):
+            result.branch, result.branch_remote, result.ahead, result.behind = self._parse_branch(lines[0])
+            lines = lines[1:]
+
+        for line in lines:
+            self._parse_line(line)
+        return result
+
+    def _parse_line(self, line):
+        pass
+
+    def _parse_branch(self, line):
+        branch = None
+        branch_remote = None
+        ahead = 0
+        behind = 0
+        if line is None or not line.startswith('##'):
+            return branch, branch_remote, ahead, behind
+        #skip '## '
+        line = line.strip()
+        line = line[2:]
+        tokens = line.split('[')
+        branch_str = tokens[0]
+        if len(tokens)==2:
+            ahead, behind = self._parse_ahead_behind(tokens[1])
+        branch, branch_remote = self._parse_branch_str(branch_str)
+        return branch, branch_remote, ahead, behind
+
+    def _parse_ahead_behind(self, line):
+        line = line.strip('[]')
+        lines = line.split(',')
+        ahead = 0
+        behind = 0
+        for line in lines:
+            line = line.strip()
+            if line.startswith('ahead'):
+                ahead = int(line.split()[1])
+            if line.startswith('behind'):
+                behind = int(line.split()[1])
+        return ahead, behind
+
+    def _parse_branch_str(self, branch_str):
+        branch_str = branch_str.strip()
+        branch = None
+        remote = None
+        if branch_str == 'HEAD (no branch)':
+            branch = 'detached'
+        else:
+            branches = branch_str.split('...')
+            branch = branches[0]
+            if len(branches)==2:
+                remote = branches[1]
+        return branch, remote
+
 
 
 class PullAction(Action):
