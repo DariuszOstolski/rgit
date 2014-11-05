@@ -88,5 +88,10 @@ M  COPYING
         self.assertEquals(0, result.ahead)
         self.assertEquals(0, result.behind)
 
+    def test_parse_no_changes(self):
+        parser = rgit.StatusParser()
+        result = parser.parse("## master...origin/master")
+        self.assertFalse(result.changes)
+
 if __name__ == '__main__':
     unittest.main()

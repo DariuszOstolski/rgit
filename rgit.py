@@ -107,28 +107,6 @@ class ColorFormatter(object):
         return self
 
 
-class Action(object):
-    def __init__(self, action, remote, executor):
-        self._remote = remote
-        self._action = action
-        self._executor = executor
-
-    def execute(self, directory):
-        return self._executor.getoutput(directory, self.get_command())
-
-    def get(self):
-        return "({0})".format(self._action)
-
-    def safe(self):
-        return self._action == 'fetch'
-
-    def get_command(self):
-        return "git {0} {1}".format(self._action, self.get_options()) + ' '.join(self._remote.split(":"))
-
-    def get_options(self):
-        return ''
-
-
 class StatusResult(object):
     DELETED = 0
     DELETED_WORK_TREE = 1
@@ -151,6 +129,12 @@ class StatusResult(object):
         self._ahead = 0
         self._behind = 0
 
+    @property
+    def changes(self):
+        return len(self._modified)>0 or len(self._modified_work_tree)>0 \
+                or len(self._added)>0 or len(self._renamed)>0 \
+                or len(self._untracked)>0 or len(self._deleted)>0 \
+                or len(self._deleted_work_tree)>0
     @property
     def modified(self):
         return self._modified
@@ -315,6 +299,26 @@ class StatusParser(object):
                 remote = branches[1]
         return branch, remote
 
+class Action(object):
+    def __init__(self, action, remote, executor):
+        self._remote = remote
+        self._action = action
+        self._executor = executor
+
+    def execute(self, directory):
+        return self._executor.get_output(directory, self.get_command())
+
+    def get(self):
+        return "({0})".format(self._action)
+
+    def safe(self):
+        return self._action == 'fetch'
+
+    def get_command(self):
+        return "git {0} {1}".format(self._action, self.get_options()) + ' '.join(self._remote.split(":"))
+
+    def get_options(self):
+        return ''
 
 class PullAction(Action):
     def __init__(self, remote, executor, options):
@@ -341,12 +345,20 @@ class StatusAction(Action):
         """
         Action.__init__(self, 'status', remote, executor)
         self._summary = summary
+        self._parser = StatusParser()
 
     def execute(self, directory):
         out = Action.execute(self, directory)
         if self._summary:
             out = ''
         return out
+
+    def get_status(self, directory):
+        out = Action.execute(self, directory)
+        return self._parser.parse(out)
+
+    def get_options(self):
+        return '-sb --porcelain'
 
     def safe(self):
         return True
@@ -356,13 +368,18 @@ class DryRunExecutor:
     def __init__(self):
         pass
 
-    def getoutput(self, directory, command):
+    def get_output(self, directory, command):
         logging.warning("Executing: %s in %s", command, directory)
         if command.find('git status') != -1:
-            return """On branch master
-Your branch is up-to-date with 'origin/master'.
-
-nothing to commit, working directory clean"""
+            return """## master...origin/master [ahead 1, behind 2]
+D  COPYING.llvm
+ D COPYING.unrar
+R  COPYING.unrar -> COPYING.unra
+?? COPYING.unra
+A  blabla.file
+AM blabla1.file
+M  COPYING
+ M COPYING.lzma"""
         return ""
 
 
@@ -377,26 +394,15 @@ class SubprocessExecutor:
         stdout, stderr = git_process.communicate()
         return stdout
 
-
-ON_BRANCH = 'On branch'
-
-
 def get_dir_status(dirname, executor):
-    return StatusAction('', executor).execute(dirname)
-
-
-def get_branch(out):
-    branch_begin = out.find(ON_BRANCH)
-    branch_end = out.find('\n', branch_begin)
-    return out[branch_begin + len(ON_BRANCH) + 1:branch_end]
-
+    return StatusAction('', executor).get_status(dirname)
 
 def execute(dirname, action, executor, formatter):
-    out = get_dir_status(dirname, executor)
-    logging.debug(out)
-    branch = get_branch(out)
+    status = get_dir_status(dirname, executor)
+    logging.debug(status)
+    branch = status.branch
 
-    no_changes = (-1 != out.find('nothing'))
+    no_changes = (not status.changes)
     safe_to_execute_action = (action is not None and (action.safe() or no_changes))
 
     if no_changes:
