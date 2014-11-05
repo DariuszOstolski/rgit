@@ -102,6 +102,10 @@ class ColorFormatter(object):
         sys.stdout.write("{0}\n".format(str))
         return self
 
+    def print_out(self, str):
+        sys.stdout.write("{0}".format(str))
+        return self
+
     def print_header(self, header):
         self.println(self.header(header))
         return self
@@ -130,11 +134,18 @@ class StatusResult(object):
         self._behind = 0
 
     @property
+    def staged(self):
+        return len(self._modified) > 0 or len(self._added) > 0 or len(self._renamed) > 0 \
+               or len(self._deleted) > 0
+
+    @property
+    def not_staged(self):
+        return len(self._modified_work_tree) > 0 or len(self._deleted_work_tree) > 0
+
+    @property
     def changes(self):
-        return len(self._modified)>0 or len(self._modified_work_tree)>0 \
-                or len(self._added)>0 or len(self._renamed)>0 \
-                or len(self._untracked)>0 or len(self._deleted)>0 \
-                or len(self._deleted_work_tree)>0
+        return self.staged or self.not_staged or len(self._untracked) > 0
+
     @property
     def modified(self):
         return self._modified
@@ -252,6 +263,7 @@ class StatusParser(object):
             def __init__(self, from_path, to_path):
                 self.from_path = from_path
                 self.to_path = to_path
+
         from_path, to_path = value.split('->')
         result = Path(from_path.strip(), to_path.strip())
         return result
@@ -299,6 +311,7 @@ class StatusParser(object):
                 remote = branches[1]
         return branch, remote
 
+
 class Action(object):
     def __init__(self, action, remote, executor):
         self._remote = remote
@@ -320,6 +333,7 @@ class Action(object):
     def get_options(self):
         return ''
 
+
 class PullAction(Action):
     def __init__(self, remote, executor, options):
         Action.__init__(self, 'pull', remote, executor)
@@ -336,7 +350,9 @@ class PullAction(Action):
 
 
 class StatusAction(Action):
-    def __init__(self, remote, executor, summary=False):
+    INDENT = '   '
+
+    def __init__(self, remote, executor, formatter, summary=False):
         """
 
         :param remote:
@@ -346,12 +362,62 @@ class StatusAction(Action):
         Action.__init__(self, 'status', remote, executor)
         self._summary = summary
         self._parser = StatusParser()
+        self._formatter = formatter
 
     def execute(self, directory):
-        out = Action.execute(self, directory)
+        status = self.get_status(directory)
         if self._summary:
-            out = ''
-        return out
+            return ''
+        return self._format(status, directory)
+
+    def _format(self, status, directory):
+        result = ''
+        if status.staged:
+            result += self._format_staged(status, directory)
+        if status.not_staged:
+            result += self._format_unstaged(status, directory)
+        if len(status.untracked) > 0:
+            result += self._format_untracked(status, directory)
+        return result
+
+    def _format_staged(self, status, directory):
+        result = '{0}Changes to be committed:\n'.format(StatusAction.INDENT)
+        for modified in status.modified:
+            result += self._formatter.info(
+                '{0}modified: {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, modified)))
+        for deleted in status.deleted:
+            result += self._formatter.info(
+                '{0}deleted:  {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, deleted)))
+        for added in status.new_files:
+            result += self._formatter.info(
+                '{0}new file: {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, added)))
+        for renamed in status.renamed:
+            result += self._formatter.info(
+                '{0}renamed:  {1} -> {2}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, renamed.from_path),
+                                                   self.get_path(directory, renamed.to_path)))
+        return result
+
+        return result
+
+    def _format_unstaged(self, status, directory):
+        result = '{0}Changes not staged for commit:\n'.format(StatusAction.INDENT)
+        for modified in status.modified_work_tree:
+            result += self._formatter.fail(
+                '{0}modified: {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, modified)))
+        for deleted in status.deleted_work_tree:
+            result += self._formatter.fail(
+                '{0}deleted:  {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, deleted)))
+        return result
+
+    def _format_untracked(self, status, directory):
+        result = '{0}Untracked files:\n'.format(StatusAction.INDENT)
+        for untracked in status.untracked:
+            result += self._formatter.fail(
+                '{0}{1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, untracked)))
+        return result
+
+    def get_path(self, directory, path):
+        return os.path.join(directory, path)
 
     def get_status(self, directory):
         out = Action.execute(self, directory)
@@ -394,8 +460,10 @@ class SubprocessExecutor:
         stdout, stderr = git_process.communicate()
         return stdout
 
+
 def get_dir_status(dirname, executor):
-    return StatusAction('', executor).get_status(dirname)
+    return StatusAction('', executor, None).get_status(dirname)
+
 
 def execute(dirname, action, executor, formatter):
     status = get_dir_status(dirname, executor)
@@ -410,12 +478,26 @@ def execute(dirname, action, executor, formatter):
     else:
         result = formatter.fail("Changes")
 
+    work_tree_state = ''
+    if status.ahead > 0 or status.behind > 0:
+        work_tree_state += ' ['
+        if status.ahead:
+            work_tree_state += 'ahead ' + str(status.ahead)
+
+        if len(work_tree_state) != 2 and status.behind > 0:
+            work_tree_state += ', '
+
+        if status.behind:
+            work_tree_state += 'behind ' + str(status.behind)
+        work_tree_state += ']'
+        result += formatter.fail(work_tree_state)
+
     # Execute requested action
     if safe_to_execute_action:
         command_result = action.execute(dirname)
         result = result + " {0} \n".format(action.get()) + command_result
 
-    formatter.println("-- " + formatter.info_darker(dirname.ljust(55)) + branch + " : " + result)
+    formatter.print_out("-- " + formatter.info_darker(dirname.ljust(55)) + branch + " : " + result)
 
 
 def scan(dirname, action, executor, formatter):
@@ -450,7 +532,7 @@ def main_impl(argv):
     if options.action == 'fetch':
         action = Action("fetch", options.remote, executor)
     if options.action == 'status':
-        action = StatusAction(options.remote, executor, options.summary)
+        action = StatusAction(options.remote, executor, formatter, options.summary)
     dirname = os.path.abspath(options.dirname)
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=verbosity)
     logging.debug("Options %s", options)
