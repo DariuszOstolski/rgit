@@ -128,16 +128,56 @@ class Action(object):
     def get_options(self):
         return ''
 
+
 class StatusResult(object):
+    DELETED = 0
+    DELETED_WORK_TREE = 1
+    UNTRACKED = 2
+    RENAMED = 3
+    ADDED = 4
+    MODIFIED = 5
+    MODIFIED_WORK_TREE = 6
+
     def __init__(self):
-        self._modified_staged = []
-        self._modified_unstaged = []
+        self._modified = []
+        self._modified_work_tree = []
+        self._added = []
+        self._renamed = []
         self._untracked = []
-        self._deleted_staged = []
+        self._deleted = []
+        self._deleted_work_tree = []
         self._branch = None
         self._branch_remote = None
         self._ahead = 0
         self._behind = 0
+
+    @property
+    def modified(self):
+        return self._modified
+
+    @property
+    def modified_work_tree(self):
+        return self._modified_work_tree
+
+    @property
+    def renamed(self):
+        return self._renamed
+
+    @property
+    def new_files(self):
+        return self._added
+
+    @property
+    def untracked(self):
+        return self._untracked
+
+    @property
+    def deleted(self):
+        return self._deleted
+
+    @property
+    def deleted_work_tree(self):
+        return self._deleted_work_tree
 
     @property
     def branch(self):
@@ -171,6 +211,24 @@ class StatusResult(object):
     def behind(self, behind):
         self._behind = behind
 
+    def add(self, kind, value):
+        if kind == StatusResult.DELETED:
+            self._deleted.append(value)
+        elif kind == StatusResult.DELETED_WORK_TREE:
+            self._deleted_work_tree.append(value)
+        elif kind == StatusResult.UNTRACKED:
+            self._untracked.append(value)
+        elif kind == StatusResult.RENAMED:
+            self._renamed.append(value)
+        elif kind == StatusResult.ADDED:
+            self._added.append(value)
+        elif kind == StatusResult.MODIFIED:
+            self._modified.append(value)
+        elif kind == StatusResult.MODIFIED_WORK_TREE:
+            self._modified_work_tree.append(value)
+        else:
+            raise RuntimeError('Unkown kind')
+
 
 class StatusParser(object):
     def __init__(self):
@@ -184,11 +242,35 @@ class StatusParser(object):
             lines = lines[1:]
 
         for line in lines:
-            self._parse_line(line)
+            self._parse_line(line, result)
         return result
 
-    def _parse_line(self, line):
-        pass
+    def _parse_line(self, line, result):
+        type = line[:2]
+        value = line[2:].strip()
+        if type[0] == 'D':
+            result.add(StatusResult.DELETED, value)
+        if type[1] == 'D':
+            result.add(StatusResult.DELETED_WORK_TREE, value)
+        if type == '??':
+            result.add(StatusResult.UNTRACKED, value)
+        if type[0] == 'R':
+            result.add(StatusResult.RENAMED, self._parse_renamed(value))
+        if type[0] == 'A':
+            result.add(StatusResult.ADDED, value)
+        if type[0] == 'M':
+            result.add(StatusResult.MODIFIED, value)
+        if type[1] == 'M':
+            result.add(StatusResult.MODIFIED_WORK_TREE, value)
+
+    def _parse_renamed(self, value):
+        class Path(object):
+            def __init__(self, from_path, to_path):
+                self.from_path = from_path
+                self.to_path = to_path
+        from_path, to_path = value.split('->')
+        result = Path(from_path.strip(), to_path.strip())
+        return result
 
     def _parse_branch(self, line):
         branch = None
@@ -197,12 +279,12 @@ class StatusParser(object):
         behind = 0
         if line is None or not line.startswith('##'):
             return branch, branch_remote, ahead, behind
-        #skip '## '
+        # skip '## '
         line = line.strip()
         line = line[2:]
         tokens = line.split('[')
         branch_str = tokens[0]
-        if len(tokens)==2:
+        if len(tokens) == 2:
             ahead, behind = self._parse_ahead_behind(tokens[1])
         branch, branch_remote = self._parse_branch_str(branch_str)
         return branch, branch_remote, ahead, behind
@@ -229,10 +311,9 @@ class StatusParser(object):
         else:
             branches = branch_str.split('...')
             branch = branches[0]
-            if len(branches)==2:
+            if len(branches) == 2:
                 remote = branches[1]
         return branch, remote
-
 
 
 class PullAction(Action):

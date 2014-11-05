@@ -34,15 +34,15 @@ M  COPYING
         result = parser.parse(TestStatusParser.deleted)
         self.assertEquals(1, len(result.deleted))
         self.assertEquals(1, len(result.deleted_work_tree))
-        self.assertEquals("COPYIMG.llvm", result.deleted[0])
-        self.assertEquals("COPYIMG.unrar", result.deleted_work_tree[0])
+        self.assertEquals("COPYING.llvm", result.deleted[0])
+        self.assertEquals("COPYING.unrar", result.deleted_work_tree[0])
 
     def test_parse_renamed(self):
         parser = rgit.StatusParser()
         result = parser.parse(TestStatusParser.renamed)
         self.assertEquals(1, len(result.renamed))
-        self.assertEquals("COPYING.unrar", result.renamed[0].path_from)
-        self.assertEquals("COPYING.unra", result.renamed[0].path_to)
+        self.assertEquals("COPYING.unrar", result.renamed[0].from_path)
+        self.assertEquals("COPYING.unra", result.renamed[0].to_path)
 
     def test_parse_untracked(self):
         parser = rgit.StatusParser()
@@ -54,10 +54,10 @@ M  COPYING
         parser = rgit.StatusParser()
         result = parser.parse(TestStatusParser.new_file)
         self.assertEquals(2, len(result.new_files))
-        self.assertEquals(1, len(result.modified))
+        self.assertEquals(1, len(result.modified_work_tree))
         self.assertEquals("blabla.file", result.new_files[0])
-        self.assertEquals("blabla1.file", result.new_files[0])
-        self.assertEquals("blabla1.file", result.modified[0])
+        self.assertEquals("blabla1.file", result.new_files[1])
+        self.assertEquals("blabla1.file", result.modified_work_tree[0])
 
     def test_parse_modified(self):
         parser = rgit.StatusParser()
