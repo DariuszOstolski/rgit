@@ -19,7 +19,7 @@ parser.add_argument("-d", "--dir",
                     dest="dirname",
                     action="store",
                     help="The directory to scan sub dirs from. The default is current working directory",
-                    default=os.path.abspath("./"))
+                    default=".")
 
 parser.add_argument("-r", "--remote",
                     action="store",
@@ -113,14 +113,16 @@ class ColorFormatter(object):
 
 class StatusResult(object):
     DELETED = 0
-    DELETED_WORK_TREE = 1
-    UNTRACKED = 2
-    RENAMED = 3
-    ADDED = 4
-    MODIFIED = 5
-    MODIFIED_WORK_TREE = 6
+    DELETED_WORK_TREE = DELETED+1
+    UNTRACKED = DELETED_WORK_TREE+1
+    RENAMED = UNTRACKED+1
+    ADDED = RENAMED+1
+    MODIFIED = ADDED+1
+    MODIFIED_WORK_TREE = MODIFIED+1
+    UNMERGED = MODIFIED_WORK_TREE+1
 
     def __init__(self):
+        self._unmerged = []
         self._modified = []
         self._modified_work_tree = []
         self._added = []
@@ -134,6 +136,10 @@ class StatusResult(object):
         self._behind = 0
 
     @property
+    def unmerged(self):
+        return self._unmerged
+
+    @property
     def staged(self):
         return len(self._modified) > 0 or len(self._added) > 0 or len(self._renamed) > 0 \
                or len(self._deleted) > 0
@@ -144,7 +150,7 @@ class StatusResult(object):
 
     @property
     def changes(self):
-        return self.staged or self.not_staged or len(self._untracked) > 0
+        return self.staged or self.not_staged or len(self._untracked) > 0 or len(self.unmerged) > 0
 
     @property
     def modified(self):
@@ -221,6 +227,8 @@ class StatusResult(object):
             self._modified.append(value)
         elif kind == StatusResult.MODIFIED_WORK_TREE:
             self._modified_work_tree.append(value)
+        elif kind == StatusResult.UNMERGED:
+            self._unmerged.append(value)
         else:
             raise RuntimeError('Unkown kind')
 
@@ -241,22 +249,43 @@ class StatusParser(object):
         return result
 
     def _parse_line(self, line, result):
+        class Unmerged(object):
+            def __init__(self, name, description):
+                self.name = name
+                self.description = description
+
         type = line[:2]
         value = line[2:].strip()
-        if type[0] == 'D':
-            result.add(StatusResult.DELETED, value)
-        if type[1] == 'D':
-            result.add(StatusResult.DELETED_WORK_TREE, value)
-        if type == '??':
-            result.add(StatusResult.UNTRACKED, value)
-        if type[0] == 'R':
-            result.add(StatusResult.RENAMED, self._parse_renamed(value))
-        if type[0] == 'A':
-            result.add(StatusResult.ADDED, value)
-        if type[0] == 'M':
-            result.add(StatusResult.MODIFIED, value)
-        if type[1] == 'M':
-            result.add(StatusResult.MODIFIED_WORK_TREE, value)
+
+        if type[0] == 'U' and type[1] == 'U':
+            result.add(StatusResult.UNMERGED, Unmerged(value, 'both modified'))
+        elif type[0] == 'A' and type[1] == 'U':
+            result.add(StatusResult.UNMERGED, Unmerged(value, 'added by us'))
+        elif type[0] == 'U' and type[1] == 'D':
+            result.add(StatusResult.UNMERGED, Unmerged(value, 'deleted by them'))
+        elif type[0] == 'U' and type[1] == 'A':
+            result.add(StatusResult.UNMERGED, Unmerged(value, 'added by them'))
+        elif type[0] == 'D' and type[1] == 'U':
+            result.add(StatusResult.UNMERGED, Unmerged(value, 'deleted by us'))
+        elif type[0] == 'A' and type[1] == 'A':
+            result.add(StatusResult.UNMERGED, Unmerged(value, 'both added'))
+        elif type[0] == 'D' and type[1] == 'D':
+            result.add(StatusResult.UNMERGED, Unmerged(value, 'both deleted'))
+        else:
+            if type[0] == 'D':
+                result.add(StatusResult.DELETED, value)
+            if type[1] == 'D':
+                result.add(StatusResult.DELETED_WORK_TREE, value)
+            if type == '??':
+                result.add(StatusResult.UNTRACKED, value)
+            if type[0] == 'R':
+                result.add(StatusResult.RENAMED, self._parse_renamed(value))
+            if type[0] == 'A':
+                result.add(StatusResult.ADDED, value)
+            if type[0] == 'M':
+                result.add(StatusResult.MODIFIED, value)
+            if type[1] == 'M':
+                result.add(StatusResult.MODIFIED_WORK_TREE, value)
 
     def _parse_renamed(self, value):
         class Path(object):
@@ -374,6 +403,8 @@ class StatusAction(Action):
         result = ''
         if status.staged:
             result += self._format_staged(status, directory)
+        if status.unmerged:
+            result += self._format_unmerged(status, directory)
         if status.not_staged:
             result += self._format_unstaged(status, directory)
         if len(status.untracked) > 0:
@@ -397,7 +428,11 @@ class StatusAction(Action):
                                                    self.get_path(directory, renamed.to_path)))
         return result
 
-        return result
+    def _format_unmerged(self, status, directory):
+        result = '{0}Unmerged paths:\n'.format(StatusAction.INDENT)
+        for unmerged in status.unmerged:
+            result += self._formatter.fail(
+                '{0}{2}: {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, unmerged.name), unmerged.description))
 
     def _format_unstaged(self, status, directory):
         result = '{0}Changes not staged for commit:\n'.format(StatusAction.INDENT)
@@ -533,7 +568,7 @@ def main_impl(argv):
         action = Action("fetch", options.remote, executor)
     if options.action == 'status':
         action = StatusAction(options.remote, executor, formatter, options.summary)
-    dirname = os.path.abspath(options.dirname)
+    dirname = options.dirname
     logging.basicConfig(format='[%(levelname)s]: %(message)s', level=verbosity)
     logging.debug("Options %s", options)
     formatter.print_header(HEADER)

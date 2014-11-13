@@ -22,6 +22,16 @@ AM blabla1.file"""
 M  COPYING
  M COPYING.lzma
 """
+    conflict = """## master...origin/master
+UU CMakeLists.txt
+DD Both_Deleted.txt
+AU Added_By_Us.txt
+UD Deleted_By_Them.txt
+UA Added by them.txt
+DU Deleted by Us.txt
+AA Both_Added.txt
+"""
+
     branch = """## master...origin/master [ahead 1, behind 2]"""
     branch_detached = """## HEAD (no branch)"""
     branch_simple = """## dev"""
@@ -92,6 +102,19 @@ M  COPYING
         parser = rgit.StatusParser()
         result = parser.parse("## master...origin/master")
         self.assertFalse(result.changes)
+
+    def test_parse_conflict(self):
+        parser = rgit.StatusParser()
+        result = parser.parse(TestStatusParser.conflict)
+        self.assertTrue(result.changes)
+        self.assertEquals(7, len(result.unmerged))
+        self.assertEquals("CMakeLists.txt", result.unmerged[0].name)
+        self.assertEquals("Both_Deleted.txt", result.unmerged[1].name)
+        self.assertEquals("Added_By_Us.txt", result.unmerged[2].name)
+        self.assertEquals("Deleted_By_Them.txt", result.unmerged[3].name)
+        self.assertEquals("Added by them.txt", result.unmerged[4].name)
+        self.assertEquals("Deleted by Us.txt", result.unmerged[5].name)
+        self.assertEquals("Both_Added.txt", result.unmerged[6].name)
 
 if __name__ == '__main__':
     unittest.main()
