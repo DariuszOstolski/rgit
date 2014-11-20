@@ -113,13 +113,13 @@ class ColorFormatter(object):
 
 class StatusResult(object):
     DELETED = 0
-    DELETED_WORK_TREE = DELETED+1
-    UNTRACKED = DELETED_WORK_TREE+1
-    RENAMED = UNTRACKED+1
-    ADDED = RENAMED+1
-    MODIFIED = ADDED+1
-    MODIFIED_WORK_TREE = MODIFIED+1
-    UNMERGED = MODIFIED_WORK_TREE+1
+    DELETED_WORK_TREE = DELETED + 1
+    UNTRACKED = DELETED_WORK_TREE + 1
+    RENAMED = UNTRACKED + 1
+    ADDED = RENAMED + 1
+    MODIFIED = ADDED + 1
+    MODIFIED_WORK_TREE = MODIFIED + 1
+    UNMERGED = MODIFIED_WORK_TREE + 1
 
     def __init__(self):
         self._unmerged = []
@@ -347,7 +347,7 @@ class Action(object):
         self._action = action
         self._executor = executor
 
-    def execute(self, directory):
+    def execute(self, directory, status=None):
         return self._executor.get_output(directory, self.get_command())
 
     def get(self):
@@ -372,9 +372,9 @@ class PullAction(Action):
     def get_options(self):
         options = ''
         if self._options.all:
-            options = '--all'
+            options = '--all '
         if self._options.rebase:
-            options += ' --rebase={0}'.format(self._options.rebase)
+            options += '--rebase={0} '.format(self._options.rebase)
         return options
 
 
@@ -393,7 +393,7 @@ class StatusAction(Action):
         self._parser = StatusParser()
         self._formatter = formatter
 
-    def execute(self, directory):
+    def execute(self, directory, status=None):
         status = self.get_status(directory)
         if self._summary:
             return ''
@@ -432,7 +432,8 @@ class StatusAction(Action):
         result = '{0}Unmerged paths:\n'.format(StatusAction.INDENT)
         for unmerged in status.unmerged:
             result += self._formatter.fail(
-                '{0}{2}: {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, unmerged.name), unmerged.description))
+                '{0}{2}: {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, unmerged.name),
+                                       unmerged.description))
 
     def _format_unstaged(self, status, directory):
         result = '{0}Changes not staged for commit:\n'.format(StatusAction.INDENT)
@@ -500,6 +501,22 @@ def get_dir_status(dirname, executor):
     return StatusAction('', executor, None).get_status(dirname)
 
 
+def get_work_tree(status):
+    work_tree_state = None
+    if status.ahead > 0 or status.behind > 0:
+        work_tree_state = ' ['
+        if status.ahead:
+            work_tree_state += 'ahead ' + str(status.ahead)
+
+        if len(work_tree_state) != 2 and status.behind > 0:
+            work_tree_state += ', '
+
+        if status.behind:
+            work_tree_state += 'behind ' + str(status.behind)
+        work_tree_state += ']'
+    return work_tree_state
+
+
 def execute(dirname, action, executor, formatter):
     status = get_dir_status(dirname, executor)
     logging.debug(status)
@@ -513,23 +530,13 @@ def execute(dirname, action, executor, formatter):
     else:
         result = formatter.fail("Changes")
 
-    work_tree_state = ''
-    if status.ahead > 0 or status.behind > 0:
-        work_tree_state += ' ['
-        if status.ahead:
-            work_tree_state += 'ahead ' + str(status.ahead)
-
-        if len(work_tree_state) != 2 and status.behind > 0:
-            work_tree_state += ', '
-
-        if status.behind:
-            work_tree_state += 'behind ' + str(status.behind)
-        work_tree_state += ']'
+    work_tree_state = get_work_tree(status)
+    if work_tree_state is not None:
         result += formatter.fail(work_tree_state)
 
     # Execute requested action
     if safe_to_execute_action:
-        command_result = action.execute(dirname)
+        command_result = action.execute(dirname, status=status)
         result = result + " {0} \n".format(action.get()) + command_result
 
     formatter.print_out("-- " + formatter.info_darker(dirname.ljust(55)) + branch + " : " + result)
