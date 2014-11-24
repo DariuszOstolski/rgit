@@ -34,12 +34,72 @@ Action:
 
 ###Status
 
+Status is a very usefull subcommand that can give You very concise view over your git repositories
+
 ```
 rgit.py status [-h] [-s]
 
 optional arguments:
   -h, --help     show this help message and exit
   -s, --summary  Display summary for each subdirectory
+
+```
+
+Example summary output
+
+```
+daro@prince$ ./rgit/rgit.py status -s
+-- Starting rgit...
+Scanning sub directories of .
+-- ./naszeleki/naszeleki                                  master : Changes (status)
+-- ./rgit                                                 master : Changes (status)
+-- ./os                                                   master : No Changes (status)
+-- ./pylxc                                                master : No Changes (status)
+-- ./cppformat                                            master : Changes (status)
+-- ./courses                                              master : Changes (status)
+-- ./filesystem                                           master : No Changes (status)
+-- ./clamav-devel                                         master : Changes [ahead 1] (status)
+```
+
+Full output:
+```
+-- ./naszeleki/naszeleki                                  master : Changes (status)
+   Changes not staged for commit:
+      modified: ./naszeleki/naszeleki/.gitignore
+      modified: ./naszeleki/naszeleki/apps/web/data/parser.py
+      modified: ./naszeleki/naszeleki/apps/web/tests/test_parser.py
+   Untracked files:
+      ./naszeleki/naszeleki/apps/web/data-dev.sqlite
+-- ./rgit                                                 master : Changes (status)
+   Changes not staged for commit:
+      modified: ./rgit/README.md
+   Untracked files:
+      ./rgit/.idea/
+-- ./os                                                   master : No Changes (status)
+-- ./pylxc                                                master : No Changes (status)
+-- ./cppformat                                            master : Changes (status)
+   Changes not staged for commit:
+      modified: ./cppformat/.gitignore
+   Untracked files:
+      ./cppformat/nbproject/
+-- ./courses                                              master : Changes (status)
+   Changes to be committed:
+      new file: ./courses/datascience/datasci_course_materials
+   Changes not staged for commit:
+      modified: ./courses/comp_investing/Week3/example-data.csv
+   Untracked files:
+      ./courses/comp_investing/Week8/
+-- ./filesystem                                           master : No Changes (status)
+-- ./clamav-devel                                         master : Changes [ahead 1] (status)
+   Changes to be committed:
+      modified: ./clamav-devel/BUGS
+      new file: ./clamav-devel/COPYING.1
+      renamed:  ./clamav-devel/COPYING.regex -> ./clamav-devel/COPYING.pcre
+      renamed:  ./clamav-devel/etc/Makefile.am -> ./clamav-devel/etc1/Makefile.am
+   Changes not staged for commit:
+      modified: ./clamav-devel/AUTHORS
+   Untracked files:
+      ./clamav-devel/COPYING.zliba
 
 ```
 
