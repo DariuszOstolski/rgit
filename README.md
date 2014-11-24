@@ -7,10 +7,10 @@ recursively.
 If you found a bug or want to request a feature please create an issue [here](https://github.com/DariuszOstolski/rgit/issues?q=is%3Aopen+is%3Aissue)
 
 Currently following commands are supported:
-- [x] status - gives a concise view of repositories 
-- [x] pull
-- [x] push 
-- [x] fetch
+- [x] [status](#html-status) - gives a concise view of repositories 
+- [x] [pull](#html-pull)
+- [x] [push](#html-push)
+- [x] [fetch](#html-fetch) 
 - [ ] add
 - [ ] commit
 
