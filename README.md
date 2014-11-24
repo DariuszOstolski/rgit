@@ -4,6 +4,9 @@ rgit
 rgit is a powerful python script to fetch, pull or push multiple repositories
 recursively.
 
+If you found a bug or want to request a feature please create an issue [here](https://github.com/DariuszOstolski/rgit/issues?q=is%3Aopen+is%3Aissue)
+
+
 ###Usage
 
 
