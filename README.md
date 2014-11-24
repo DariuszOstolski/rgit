@@ -7,12 +7,13 @@ recursively.
 If you found a bug or want to request a feature please create an issue [here](https://github.com/DariuszOstolski/rgit/issues?q=is%3Aopen+is%3Aissue)
 
 Currently following commands are supported:
+- [ ] add
+- [ ] commit
+- [x] [fetch](#fetch)
 - [x] [status](#status) - gives a concise view of repositories 
 - [x] [pull](#pull)
 - [x] [push](#push)
-- [x] [fetch](#fetch) 
-- [ ] add
-- [ ] commit
+
 
 ###Usage
 
