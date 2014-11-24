@@ -41,6 +41,10 @@ Action:
                         git action to execute recursively
 
 ```
+###Fetch
+
+Download objects and refs from another repository
+
 
 ###Status
 
@@ -115,6 +119,7 @@ Full output:
 
 ###Pull
 
+Fetch from and integrate with another repository or a local branch
 ```
 rgit.py pull [-h] [--all] [-r {false,true,preserve}]
 
@@ -141,3 +146,7 @@ optional arguments:
                         use this option unless you have read git-rebase(1)
                         carefully.
 ```
+
+###Push
+
+Update remote refs along with associated objects

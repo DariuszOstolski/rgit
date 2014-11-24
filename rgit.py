@@ -31,7 +31,7 @@ subparsers = parser.add_subparsers(title='Action', dest='action',
                                    description='git action to execute: pull, push, fetch, status',
                                    help='git action to execute recursively')
 
-pull_parser = subparsers.add_parser('pull')
+pull_parser = subparsers.add_parser('pull', description='Fetch from and integrate with another repository or a local branch')
 pull_parser.add_argument("--all", dest='all', action='store_true', default=False
                          , help='Fetch all remotes.')
 pull_parser.add_argument('-r', '--rebase', dest='rebase', choices=['false', 'true', 'preserve']
@@ -48,9 +48,9 @@ use --rebase instead of merging.\n\n
 \tThis is a potentially dangerous mode of operation. It rewrites history, which does not bode well when you published that history
 \talready. Do not use this option unless you have read git-rebase(1) carefully.""")
 
-subparsers.add_parser('push')
-subparsers.add_parser('fetch')
-status_parser = subparsers.add_parser('status')
+subparsers.add_parser('push', description='Update remote refs along with associated objects')
+subparsers.add_parser('fetch', description='Download objects and refs from another repository')
+status_parser = subparsers.add_parser('status', description='Show the working tree status')
 status_parser.add_argument('-s', '--summary', dest='summary', action="store_true"
                            , default=False
                            , help='Display summary for each subdirectory')
