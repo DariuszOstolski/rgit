@@ -434,6 +434,7 @@ class StatusAction(Action):
             result += self._formatter.fail(
                 '{0}{2}: {1}\n'.format(StatusAction.INDENT * 2, self.get_path(directory, unmerged.name),
                                        unmerged.description))
+        return result
 
     def _format_unstaged(self, status, directory):
         result = '{0}Changes not staged for commit:\n'.format(StatusAction.INDENT)
